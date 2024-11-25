@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 
@@ -17,13 +19,25 @@ class _LoadingState extends State<Loading> {
     distanceFilter: 10,
   );
 
-  static const apiKey = 'b46d24d5d9b7f41e867856f16bb0d9ab';
+  static const apiKey = '9f24f45f1a43cd906106cb78433a7be0';
 
   double? latitude;
   double? longitude;
   String cityName = '';
   double temperature = 0.0;
   String weatherDescription = '';
+
+  // Icons icons;
+  double mintemp = 0.0;
+  double maxtemp = 0.0;
+  int humidity = 0;
+  double windSpeed = 0.0;
+  int sunRise = 0;
+  int sunSet = 0;
+  String formattedSunrise = '';
+  String formattedSunset = '';
+  String iconCode = '';
+  double feelLike = 0.0;
 
   @override
   void initState() {
@@ -90,10 +104,25 @@ class _LoadingState extends State<Loading> {
         setState(() {
           temperature = weatherData['main']['temp'];
           weatherDescription = weatherData['weather'][0]['description'];
+          mintemp = weatherData['main']['temp_min'];
+          maxtemp = weatherData['main']['temp_max'];
+          windSpeed = weatherData['wind']['speed'];
+          sunRise = weatherData['sys']['sunrise'];
+          sunSet = weatherData['sys']['sunset'];
+          iconCode = weatherData['weather'][0]['icon'];
+          humidity = weatherData['main']['humidity'];
+          feelLike = weatherData['main']['feels_like'];
+
+          // Convert to readable format
+          formattedSunrise = formatUnixTime(sunRise);
+          formattedSunset = formatUnixTime(sunSet);
         });
 
-        print('Temperature: $temperature°C');
-        print('Weather Description: $weatherDescription');
+        // print('Temperature: $temperature°C');
+        // print('Weather Description: $weatherDescription');
+        // print('new: $mintemp / $maxtemp');
+        // print("windSpeed: $windSpeed");
+        // print("Sun: $formattedSunrise , $formattedSunset");
       } else {
         print('Failed to load weather data: ${weatherResponse.body}');
       }
@@ -116,40 +145,264 @@ class _LoadingState extends State<Loading> {
           style: TextStyle(color: Colors.white, fontSize: 25),
         ),
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            cityName.isNotEmpty ? cityName : 'Fetching City...',
-            style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white),
-          ),
-          Text(
-            temperature != 0.0 ? '$temperature°C' : 'Fetching Temperature...',
-            style: const TextStyle(fontSize: 48, color: Colors.white),
-          ),
-          Text(
-            weatherDescription.isNotEmpty
-                ? weatherDescription
-                : 'Fetching Description...',
-            style: const TextStyle(fontSize: 18, color: Colors.white),
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: ElevatedButton(
-              onPressed: () async {
-                await getLocationAndFetchWeather();
-              },
-              child: const Text(
-                'Refresh Weather',
-                style: TextStyle(color: Colors.black),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  cityName.isNotEmpty ? cityName : 'Fetching City...',
+                  style: const TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
               ),
-            ),
+              SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      temperature != 0.0 ? '$temperature°C' : '...',
+                      style: const TextStyle(
+                          fontSize: 45,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w400),
+                    ),
+                    SizedBox(width: 10),
+                    Column(
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              mintemp != 0.0 ? '$mintemp°/' : '...',
+                              style: const TextStyle(
+                                  fontSize: 14, color: Colors.white),
+                            ),
+                            Text(
+                              maxtemp != 0.0 ? '$maxtemp°' : '...',
+                              style: const TextStyle(
+                                  fontSize: 14, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          weatherDescription.isNotEmpty
+                              ? weatherDescription
+                              : '...',
+                          style: const TextStyle(
+                              fontSize: 18, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    if (iconCode.isNotEmpty)
+                      Image.network(
+                        'http://openweathermap.org/img/wn/$iconCode@2x.png',
+                        width: 80,
+                        height: 80,
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset(
+                            'assets/images/feel_like.svg',
+                            width: 50,
+                            height: 50,
+                          ),
+                          Text(
+                            "Feels Like",
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white),
+                          ),
+                          Text(
+                            feelLike != 0.0 ? '$feelLike°C' : '...',
+                            style: const TextStyle(
+                                fontSize: 18, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 5),
+                  Expanded(
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.water_drop,
+                            size: 50,
+                            color: Colors.blue,
+                          ),
+                          Text(
+                            "Humidity",
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white),
+                          ),
+                          Text(
+                            humidity != 0 ? '$humidity%' : '...',
+                            style: const TextStyle(
+                                fontSize: 18, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 5),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.wind_power,
+                            size: 50,
+                            color: Colors.white,
+                          ),
+                          Text(
+                            "Wind Speed",
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white),
+                          ),
+                          Text(
+                            windSpeed != 0.0 ? '$windSpeed km/h' : '...',
+                            style: const TextStyle(
+                                fontSize: 18, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 5),
+                  Expanded(
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/images/sunrise.svg',
+                                width: 50,
+                                height: 50,
+                              ),
+                              Text(
+                                "Sunrise",
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white),
+                              ),
+                              Text(
+                                sunRise != 0.0
+                                    ? ' $formattedSunrise '
+                                    : '...',
+                                style: const TextStyle(
+                                    fontSize: 15, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/images/sunset.svg',
+                                width: 50,
+                                height: 50,
+                              ),
+                              Text(
+                                "Sunset",
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white),
+                              ),
+                              Text(
+                                sunSet != 0.0 ? ' $formattedSunset ' : '...',
+                                style: const TextStyle(
+                                    fontSize: 15, color: Colors.grey),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await getLocationAndFetchWeather();
+                  },
+                  child: const Text(
+                    'Refresh',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
+
+String formatUnixTime(int unixTime) {
+  // Convert Unix timestamp to DateTime
+  final dateTime =
+      DateTime.fromMillisecondsSinceEpoch(unixTime * 1000, isUtc: true);
+
+  // Format DateTime to a readable string (e.g., "6:30 AM")
+  return DateFormat('h:mm a').format(dateTime.toLocal());
 }
